@@ -1,0 +1,12 @@
+{
+  "name": "payment-checker",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "googleapis": "^144.0.0",
+    "mongoose": "^8.0.0"
+  }
+}
+
