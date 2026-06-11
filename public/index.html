@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FamPay Payment Checker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a1a2e;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 2px solid #6c3bff;
+    }
+    header h1 { font-size: 1.3rem; color: #a78bfa; }
+    header span { font-size: 1.6rem; }
+
+    .tabs {
+      display: flex;
+      gap: 0;
+      background: #111;
+      border-bottom: 1px solid #333;
+    }
+    .tab {
+      padding: 14px 28px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: #888;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab.active { color: #a78bfa; border-bottom-color: #6c3bff; }
+
+    .section { display: none; padding: 32px 24px; max-width: 700px; margin: 0 auto; }
+    .section.active { display: block; }
+
+    /* ── Cards ── */
+    .card {
+      background: #1a1a2e;
+      border: 1px solid #2a2a4a;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 1rem; color: #a78bfa; margin-bottom: 16px; }
+
+    /* ── Form ── */
+    input, button {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      margin-bottom: 12px;
+    }
+    input {
+      background: #0f0f0f;
+      border: 1px solid #333;
+      color: #f0f0f0;
+      outline: none;
+    }
+    input:focus { border-color: #6c3bff; }
+    button {
+      background: #6c3bff;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.2s;
+    }
+    button:hover { background: #5a2ee0; }
+    button:disabled { background: #444; cursor: not-allowed; }
+
+    /* ── Result ── */
+    .result {
+      padding: 16px;
+      border-radius: 8px;
+      margin-top: 8px;
+      display: none;
+    }
+    .result.success { background: #0d2818; border: 1px solid #22c55e; color: #86efac; }
+    .result.error   { background: #2d0a0a; border: 1px solid #ef4444; color: #fca5a5; }
+    .result.show    { display: block; }
+
+    .result-row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 0.9rem; }
+    .result-label { color: #888; }
+    .result-value { font-weight: 600; }
+
+    /* ── Login ── */
+    .google-btn {
+      background: white;
+      color: #333;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid #ddd;
+      font-weight: 600;
+    }
+    .google-btn:hover { background: #f5f5f5; }
+    .google-icon { width: 20px; height: 20px; }
+
+    /* ── Payment Table ── */
+    .payment-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .payment-table th { background: #111; color: #a78bfa; padding: 10px; text-align: left; }
+    .payment-table td { padding: 10px; border-bottom: 1px solid #222; }
+    .amount-badge {
+      background: #0d2818;
+      color: #22c55e;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+
+    /* ── Status ── */
+    .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .dot-green { background: #22c55e; }
+    .dot-red   { background: #ef4444; }
+
+    .loader { text-align: center; color: #888; padding: 20px; }
+    .small { font-size: 0.8rem; color: #666; margin-top: -8px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <span>💜</span>
+  <h1>FamPay Payment Checker</h1>
+</header>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('verify')">🔍 Verify Payment</div>
+  <div class="tab" onclick="showTab('admin')">🛡️ Admin Panel</div>
+</div>
+
+<!-- ── VERIFY TAB ── -->
+<div id="verify" class="section active">
+  <div class="card">
+    <h2>🔐 Step 1 — Connect Gmail</h2>
+    <div id="loginStatus">
+      <button class="google-btn" onclick="gmailLogin()">
+        <svg class="google-icon" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Login with Google
+      </button>
+    </div>
+    <div id="loggedIn" style="display:none">
+      <p style="color:#22c55e; margin-bottom:8px;">✅ Gmail Connected!</p>
+      <button onclick="logout()" style="background:#333; font-size:0.8rem; padding:8px;">Disconnect</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>🔍 Step 2 — Verify Payment</h2>
+    <input type="text" id="searchId" placeholder="Enter UTR or Transaction ID (e.g. FMPIB5384574647)" />
+    <p class="small">* Will auto-sync last 1 hour Gmail emails</p>
+    <button onclick="verifyPayment()" id="verifyBtn">Verify Payment</button>
+
+    <div class="result" id="verifyResult"></div>
+  </div>
+</div>
+
+<!-- ── ADMIN TAB ── -->
+<div id="admin" class="section">
+  <div class="card">
+    <h2>🛡️ Admin Login</h2>
+    <input type="password" id="adminPass" placeholder="Enter admin password" />
+    <button onclick="adminLogin()">Access Panel</button>
+  </div>
+
+  <div id="adminPanel" style="display:none">
+    <div class="card">
+      <h2>📊 Recent Payments (Last 100)</h2>
+      <button onclick="loadPayments()" style="margin-bottom:16px;">🔄 Refresh</button>
+      <div id="paymentsList"><p class="loader">Click Refresh to load...</p></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──
+  let gmailToken = localStorage.getItem('gmail_token') || null;
+  let adminPassword = null;
+
+  // ── On Load ──
+  window.onload = () => {
+    // Check if returning from Google OAuth
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('access_token')) {
+      gmailToken = params.get('access_token');
+      localStorage.setItem('gmail_token', gmailToken);
+      window.history.replaceState({}, '', '/');
+    }
+    updateLoginUI();
+  };
+
+  function updateLoginUI() {
+    if (gmailToken) {
+      document.getElementById('loginStatus').style.display = 'none';
+      document.getElementById('loggedIn').style.display = 'block';
+    } else {
+      document.getElementById('loginStatus').style.display = 'block';
+      document.getElementById('loggedIn').style.display = 'none';
+    }
+  }
+
+  function gmailLogin() {
+    window.location.href = '/api/auth';
+  }
+
+  function logout() {
+    gmailToken = null;
+    localStorage.removeItem('gmail_token');
+    updateLoginUI();
+  }
+
+  // ── Tab Switch ──
+  function showTab(tab) {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // ── Verify Payment ──
+  async function verifyPayment() {
+    const id = document.getElementById('searchId').value.trim();
+    const btn = document.getElementById('verifyBtn');
+    const result = document.getElementById('verifyResult');
+
+    if (!id) {
+      showResult(result, false, 'Please enter UTR or Transaction ID');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+
+    try {
+      const tokenParam = gmailToken ? `&token=${encodeURIComponent(gmailToken)}` : '';
+      const res = await fetch(`/api/verify/${encodeURIComponent(id)}?${tokenParam}`);
+      const data = await res.json();
+
+      if (data.verified) {
+        const p = data.payment;
+        result.className = 'result success show';
+        result.innerHTML = `
+          <div style="font-size:1.1rem; margin-bottom:12px;">✅ Payment Verified!</div>
+          <div class="result-row"><span class="result-label">Amount</span><span class="result-value" style="color:#22c55e;">₹${p.amount}</span></div>
+          <div class="result-row"><span class="result-label">Sender</span><span class="result-value">${p.sender}</span></div>
+          <div class="result-row"><span class="result-label">Transaction ID</span><span class="result-value">${p.transactionId}</span></div>
+          <div class="result-row"><span class="result-label">UTR</span><span class="result-value">${p.utr || 'N/A'}</span></div>
+          <div class="result-row"><span class="result-label">Date</span><span class="result-value">${new Date(p.date).toLocaleString('en-IN')}</span></div>
+        `;
+      } else {
+        showResult(result, false, data.message || 'Payment not found');
+      }
+    } catch (e) {
+      showResult(result, false, 'Server error. Please try again.');
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Verify Payment';
+  }
+
+  function showResult(el, success, msg) {
+    el.className = `result ${success ? 'success' : 'error'} show`;
+    el.innerHTML = `${success ? '✅' : '❌'} ${msg}`;
+  }
+
+  // ── Admin Panel ──
+  function adminLogin() {
+    const pass = document.getElementById('adminPass').value;
+    if (!pass) return;
+    adminPassword = pass;
+    document.getElementById('adminPanel').style.display = 'block';
+    loadPayments();
+  }
+
+  async function loadPayments() {
+    const list = document.getElementById('paymentsList');
+    list.innerHTML = '<p class="loader">Loading...</p>';
+
+    try {
+      const tokenParam = gmailToken ? `&token=${encodeURIComponent(gmailToken)}` : '';
+      const res = await fetch(`/api/verify/all?admin=${encodeURIComponent(adminPassword)}${tokenParam}`);
+      const data = await res.json();
+
+      if (!data.success) {
+        list.innerHTML = '<p style="color:#ef4444;">❌ Wrong password or error</p>';
+        return;
+      }
+
+      if (!data.payments.length) {
+        list.innerHTML = '<p class="loader">No payments found yet.</p>';
+        return;
+      }
+
+      list.innerHTML = `
+        <table class="payment-table">
+          <thead>
+            <tr>
+              <th>Amount</th>
+              <th>Sender</th>
+              <th>Transaction ID</th>
+              <th>UTR</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.payments.map(p => `
+              <tr>
+                <td><span class="amount-badge">₹${p.amount}</span></td>
+                <td>${p.sender}</td>
+                <td style="font-size:0.75rem">${p.transactionId}</td>
+                <td style="font-size:0.75rem">${p.utr || '-'}</td>
+                <td style="font-size:0.75rem">${new Date(p.date).toLocaleString('en-IN')}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } catch (e) {
+      list.innerHTML = '<p style="color:#ef4444;">Error loading payments</p>';
+    }
+  }
+
+  // Enter key on search
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('verify').classList.contains('active')) {
+      verifyPayment();
+    }
+  });
+</script>
+</body>
+  </html>
+  
