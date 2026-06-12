@@ -1,10 +1,6 @@
-// api/verify/[id].js
-// Usage: GET /api/verify/UTR_OR_TRANSACTION_ID?amount=500
-
 import { google } from "googleapis";
 import mongoose from "mongoose";
 
-// ─── MongoDB Setup ────────────────────────────────────────────────
 let isConnected = false;
 async function connectDB() {
   if (isConnected) return;
@@ -13,20 +9,18 @@ async function connectDB() {
 }
 
 const PaymentSchema = new mongoose.Schema({
-  transactionId: { type: String, unique: true },  // FamPay ID - always saved
-  utr:           { type: String, sparse: true },   // UTR - only saved if exists
+  transactionId: { type: String, unique: true },
+  utr:           { type: String, sparse: true },
   amount:        Number,
   sender:        String,
   date:          Date,
   rawSubject:    String,
-  usedAt:        { type: Date, default: null },    // When was it verified
+  usedAt:        { type: Date, default: null },
   createdAt:     { type: Date, default: Date.now },
 });
 
-const Payment =
-  mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);
+const Payment = mongoose.models.Payment || mongoose.model("Payment", PaymentSchema);
 
-// ─── Gmail Fetch & Parse ──────────────────────────────────────────
 async function syncGmailPayments(accessToken) {
   const oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
@@ -34,27 +28,16 @@ async function syncGmailPayments(accessToken) {
     process.env.GOOGLE_REDIRECT_URI
   );
   oauth2Client.setCredentials({ access_token: accessToken });
-
   const gmail = google.gmail({ version: "v1", auth: oauth2Client });
 
   const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000);
   const query = `from:no-reply@famapp.in after:${oneHourAgo}`;
 
-  const listRes = await gmail.users.messages.list({
-    userId: "me",
-    q: query,
-    maxResults: 50,
-  });
-
+  const listRes = await gmail.users.messages.list({ userId: "me", q: query, maxResults: 50 });
   const messages = listRes.data.messages || [];
 
   for (const msg of messages) {
-    const detail = await gmail.users.messages.get({
-      userId: "me",
-      id: msg.id,
-      format: "full",
-    });
-
+    const detail = await gmail.users.messages.get({ userId: "me", id: msg.id, format: "full" });
     const headers = detail.data.payload.headers;
     const subject = headers.find((h) => h.name === "Subject")?.value || "";
     if (!subject.includes("You received")) continue;
@@ -80,7 +63,6 @@ async function syncGmailPayments(accessToken) {
     if (!txnMatch) continue;
 
     const utrValue = utrMatch ? utrMatch[1].trim() : undefined;
-
     const paymentData = {
       transactionId: txnMatch[1].trim(),
       amount:  amountMatch ? parseFloat(amountMatch[1]) : null,
@@ -88,11 +70,8 @@ async function syncGmailPayments(accessToken) {
       date:    dateMatch ? new Date(dateMatch[1].trim()) : new Date(),
       rawSubject: subject,
     };
-
-    // Only add utr if it exists
     if (utrValue) paymentData.utr = utrValue;
 
-    // Skip if already in DB
     const existing = await Payment.findOne({
       $or: [
         { transactionId: paymentData.transactionId },
@@ -109,7 +88,6 @@ async function syncGmailPayments(accessToken) {
   }
 }
 
-// ─── Main Handler ─────────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -117,7 +95,6 @@ export default async function handler(req, res) {
 
   const { id, token, admin, amount } = req.query;
 
-  // Admin panel
   if (id === "all") {
     if (admin !== process.env.ADMIN_PASSWORD) {
       return res.status(401).json({ success: false, error: "Unauthorized" });
@@ -140,13 +117,9 @@ export default async function handler(req, res) {
     }
 
     const payment = await Payment.findOne({
-      $or: [
-        { transactionId: id.trim() },
-        { utr: id.trim() },
-      ],
+      $or: [{ transactionId: id.trim() }, { utr: id.trim() }],
     });
 
-    // Not Found
     if (!payment) {
       return res.status(404).json({
         success: false,
@@ -155,7 +128,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Already verified (duplicate)
     if (payment.usedAt) {
       return res.status(200).json({
         success: false,
@@ -173,7 +145,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Amount mismatch
     if (amount) {
       const expectedAmount = parseFloat(amount);
       if (payment.amount !== expectedAmount) {
@@ -193,11 +164,9 @@ export default async function handler(req, res) {
       }
     }
 
-    // Mark as used
     payment.usedAt = new Date();
     await payment.save();
 
-    // Success
     return res.status(200).json({
       success: true,
       verified: true,
@@ -216,4 +185,4 @@ export default async function handler(req, res) {
     console.error(err);
     return res.status(500).json({ success: false, error: "Server error" });
   }
-  }
+      }
